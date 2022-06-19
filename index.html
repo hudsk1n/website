@@ -35,6 +35,29 @@
             max-width: 100%;
             height: auto;
         }
+
+        .effect {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition-property: 'opacity';
+            transition-duration: 100ms;
+            opacity: 0;
+        }
+
+        #burning {
+            background-color: rgba(127, 0, 0, .5);
+        }
+
+        #flashed {
+            background-color: rgb(255, 255, 255);
+        }
+
+        #smoked {
+            background-color: rgb(98, 98, 98);
+        }
     </style>
 </head>
 
@@ -42,6 +65,58 @@
     <main class="main">
         <h1><img src="assets/logo.webp" alt="Hudsk1n" width="1024" height="1024" /></h1>
     </main>
+    <div id="burning" class="effect"></div>
+    <div id="flashed" class="effect"></div>
+    <div id="smoked" class="effect"></div>
 </body>
+
+<script>
+    function connect() {
+        const host = window.document.location.host;
+
+        const baseUrl = host === 'hudsk1n.gg'
+            ? new URL('wss://hudsk1n.gg')
+            : new URL('ws://localhost:8078');
+
+        const url = new URL('/76561197971672596', baseUrl);
+
+        const ws = new WebSocket(url);
+
+        ws.addEventListener('close', event => {
+            clearTimeout('connect');
+            setTimeout(connect, 100, 'connect');
+        });
+
+        ws.addEventListener('message', event => {
+            const { key, value } = JSON.parse(event.data);
+
+            const burningElement = document.getElementById('burning');
+            const flashedElement = document.getElementById('flashed');
+            const smokedElement = document.getElementById('smoked');
+
+            if (key === 'player.state.burning') {
+                if (value > 0) {
+                    burningElement.style.opacity = value / 255;
+                } else {
+                    burningElement.style.opacity = 0;
+                }
+            } else if (key === 'player.state.flashed') {
+                if (value > 0) {
+                    flashedElement.style.opacity = value / 255;
+                } else {
+                    flashedElement.style.opacity = 0;
+                }
+            } if (key === 'player.state.smoked') {
+                if (value > 0) {
+                    smokedElement.style.opacity = value / 255;
+                } else {
+                    smokedElement.style.opacity = 0;
+                }
+            }
+        });
+    }
+
+    connect();
+</script>
 
 </html>
