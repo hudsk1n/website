@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Hudsk1n</title>
+    <meta name="description" content="Casual CS:GO Player for Team MAGWOM and NoPants.">
+    <meta name="keywords" content="CS,team,players,magwom, magenta wombats">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hudsk1n.gg/">
+    <meta property="og:title" content="Hudsk1n">
+    <meta property="og:description" content="Casual CS:GO Player for Team MAGWOM and NoPants.">
+    <meta property="og:image" content="https://hudsk1n.gg/preview.png">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial;
+            background-image: url('assets/banner.png');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        img {
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <h1><img src="assets/logo.png" /></h1>
+    </main>
+
+    <script>
+        function connect() {
+            let state = {};
+
+            const host = window.document.location.host;
+            const protocol = {
+                'http:': 'ws:',
+                'https:': 'wss:'
+            }[window.document.location.protocol];
+
+            const url = 'wss://gamestate.magwom.gg'; // `${protocol}//${host}`;
+
+            const ws = new WebSocket(url);
+
+            ws.addEventListener('close', event => {
+                clearTimeout('connect');
+                setTimeout(connect, 100, 'connect');
+            });
+
+            ws.addEventListener('message', event => {
+                const data = JSON.parse(event.data);
+                const player = data.player;
+
+                if (!player) {
+                    return;
+                }
+
+                if (player.clan !== 'MAGWOM') {
+                    return;
+                }
+
+                if (player.activity === 'playing') {
+                    state = {
+                        ...state,
+                        players: {
+                            ...state.players,
+                            [player.steamid]: player
+                        }
+                    }
+                } else {
+                    delete state.players[player.steamid];
+                }
+
+                render(state);
+            });
+        }
+
+        connect();
+
+        function render(state) {
+            if (!state) {
+                return;
+            }
+
+            if (!state.players) {
+                return;
+            }
+
+            const players = Object.values(state.players);
+
+            destroyInactivePlayerElement(players)
+
+            players.forEach(player => {
+                const playerElement = document.querySelector(`.stats .player[data-steamid="${player.steamid}"]`) || createPlayerElement(player.steamid)
+
+                playerElement.querySelector('.name').innerHTML = player.name;
+                playerElement.querySelector('.health progress').value = player.state.health;
+                playerElement.querySelector('.money').innerHTML = `$${player.state.money}`;
+
+                const kd = [player.match_stats.kills, player.match_stats.deaths].join('-');
+                playerElement.querySelector('.kd').innerHTML = kd;
+
+                const kdDiff = player.match_stats.kills - player.match_stats.deaths;
+                playerElement.querySelector('.kddiff').innerHTML = kdDiff;
+
+                if (kdDiff < 0) {
+                    playerElement.querySelector('.kddiff').classList.add('negative');
+                    playerElement.querySelector('.kddiff').classList.remove('zero');
+                    playerElement.querySelector('.kddiff').classList.remove('positive');
+                } else if (kdDiff === 0) {
+                    playerElement.querySelector('.kddiff').classList.remove('negative');
+                    playerElement.querySelector('.kddiff').classList.add('zero');
+                    playerElement.querySelector('.kddiff').classList.remove('positive');
+                } else if (kdDiff > 0) {
+                    playerElement.querySelector('.kddiff').classList.remove('negative');
+                    playerElement.querySelector('.kddiff').classList.remove('zero');
+                    playerElement.querySelector('.kddiff').classList.add('positive');
+                }
+
+                playerElement.querySelector('.score').innerHTML = player.match_stats.score;
+            });
+        }
+
+        function destroyInactivePlayerElement(players) {
+            [...document.querySelectorAll('.stats .player')].forEach(element => {
+                if (!players.find(p => p.steamid === element.dataset.steamid)) {
+                    element.parentElement.removeChild(element)
+                }
+            })
+        }
+
+        function createPlayerElement(steamid) {
+            const playerElement = document.createElement('tr')
+            playerElement.classList.add('player')
+            playerElement.dataset.steamid = steamid
+
+            const cols = ['avatar', 'name', 'health', 'money', 'kd', 'kddiff', 'score']
+            cols.forEach(col => {
+                const colElem = document.createElement('td')
+                colElem.classList.add(col)
+                playerElement.appendChild(colElem)
+
+                if (col === 'health') {
+                    const progressElem = document.createElement('progress')
+                    progressElem.min = 0
+                    progressElem.max = 100
+                    progressElem.value = 0
+                    colElem.appendChild(progressElem)
+                }
+            })
+
+            document.querySelector('.stats > tbody')
+                .appendChild(playerElement)
+
+            return playerElement
+        }
+
+    </script>
+</body>
+
+</html>
